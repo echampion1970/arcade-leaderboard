@@ -1,0 +1,1718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ADVANCED SERVICES // HIGH SCORES</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green:    #00ff41;
+    --cyan:     #00ffff;
+    --magenta:  #ff00ff;
+    --yellow:   #ffff00;
+    --orange:   #ff8800;
+    --red:      #ff0044;
+    --gold:     #ffd700;
+    --silver:   #c0c0c0;
+    --bronze:   #cd7f32;
+    --bg:       #000308;
+    --dim:      #00802a;
+    --panel:    rgba(0,255,65,0.04);
+    --border:   rgba(0,255,65,0.25);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--green);
+    font-family: 'Press Start 2P', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* CRT scanlines overlay */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent, transparent 3px,
+      rgba(0,0,0,0.12) 3px, rgba(0,0,0,0.12) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* CRT vignette */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at center,
+      transparent 50%,
+      rgba(0,0,0,0.55) 100%
+    );
+    pointer-events: none;
+    z-index: 9998;
+  }
+
+  /* ── MARQUEE TICKER ───────────────────────────────────── */
+  .ticker {
+    background: var(--magenta);
+    color: #000;
+    font-size: 8px;
+    padding: 5px 0;
+    overflow: hidden;
+    white-space: nowrap;
+    letter-spacing: 2px;
+  }
+  .ticker-inner {
+    display: inline-block;
+    animation: scroll-left 28s linear infinite;
+  }
+  @keyframes scroll-left {
+    from { transform: translateX(100vw); }
+    to   { transform: translateX(-100%); }
+  }
+
+  /* ── STARS BACKGROUND ────────────────────────────────── */
+  #stars {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+  }
+  .star {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background: rgba(0,255,65,0.35);
+    animation: twinkle var(--d) ease-in-out infinite;
+    animation-delay: var(--delay);
+  }
+  @keyframes twinkle {
+    0%,100% { opacity: 0.15; }
+    50%      { opacity: 0.9; }
+  }
+
+  /* ── LAYOUT ──────────────────────────────────────────── */
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 0 18px 40px;
+  }
+
+  /* ── HEADER ──────────────────────────────────────────── */
+  .header {
+    text-align: center;
+    padding: 28px 0 22px;
+    border-bottom: 2px solid var(--border);
+    margin-bottom: 24px;
+  }
+  .header-deco {
+    font-size: 9px;
+    color: var(--yellow);
+    letter-spacing: 6px;
+    margin-bottom: 12px;
+    animation: blink 1.1s step-end infinite;
+  }
+  .title-main {
+    font-size: clamp(14px, 3vw, 22px);
+    color: var(--cyan);
+    text-shadow: 0 0 8px var(--cyan), 0 0 22px var(--cyan);
+    letter-spacing: 4px;
+    animation: glow-pulse 2.5s ease-in-out infinite;
+  }
+  .title-sub {
+    font-size: clamp(8px, 1.5vw, 11px);
+    color: var(--magenta);
+    text-shadow: 0 0 8px var(--magenta);
+    letter-spacing: 3px;
+    margin: 10px 0 14px;
+  }
+  .period-badge {
+    display: inline-block;
+    font-size: 8px;
+    color: var(--yellow);
+    border: 1px solid var(--yellow);
+    padding: 5px 12px;
+    letter-spacing: 2px;
+  }
+  @keyframes glow-pulse {
+    0%,100% { text-shadow: 0 0 8px var(--cyan), 0 0 20px var(--cyan); }
+    50%      { text-shadow: 0 0 16px var(--cyan), 0 0 40px var(--cyan), 0 0 60px rgba(0,255,255,0.4); }
+  }
+
+  /* ── WEIGHTS LEGEND ──────────────────────────────────── */
+  .weights-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    margin: 0 0 24px;
+  }
+  .w-chip {
+    font-size: 6px;
+    color: var(--dim);
+    border: 1px solid var(--dim);
+    padding: 3px 7px;
+    letter-spacing: 1px;
+  }
+
+  /* ── AGENT CARD ──────────────────────────────────────── */
+  .agent-card {
+    border: 2px solid var(--border);
+    background: var(--panel);
+    margin-bottom: 14px;
+    position: relative;
+    transition: box-shadow 0.2s, border-color 0.2s;
+  }
+  .agent-card:hover {
+    border-color: var(--green);
+    box-shadow: 0 0 18px rgba(0,255,65,0.3);
+  }
+
+  /* medal colours */
+  .r1 { border-color: var(--gold);   background: rgba(255,215,0,0.05); }
+  .r2 { border-color: var(--silver); background: rgba(192,192,192,0.04); }
+  .r3 { border-color: var(--bronze); background: rgba(205,127,50,0.04); }
+
+  /* NEW RECORD crown */
+  .r1::before {
+    content: '♛';
+    position: absolute;
+    top: -13px; right: 12px;
+    font-size: 22px;
+    color: var(--gold);
+    text-shadow: 0 0 12px var(--gold);
+    animation: blink 1.4s step-end infinite;
+  }
+
+  /* ── CARD HEADER ─────────────────────────────────────── */
+  .card-top {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .rank-block { text-align: center; min-width: 58px; }
+  .rank-icon  { font-size: 18px; }
+  .rank-text  { font-size: 8px; color: var(--dim); margin-top: 3px; }
+
+  .r1 .rank-icon { color: var(--gold);   text-shadow: 0 0 10px var(--gold); }
+  .r2 .rank-icon { color: var(--silver); text-shadow: 0 0 8px var(--silver); }
+  .r3 .rank-icon { color: var(--bronze); text-shadow: 0 0 8px var(--bronze); }
+  .rn .rank-icon { color: var(--dim);    font-size: 13px; }
+
+  .agent-name {
+    flex: 1;
+    font-size: clamp(10px, 1.8vw, 13px);
+    color: var(--cyan);
+    letter-spacing: 2px;
+    text-shadow: 0 0 5px rgba(0,255,255,0.4);
+  }
+  .r1 .agent-name { color: var(--gold); }
+  .r2 .agent-name { color: var(--silver); }
+  .r3 .agent-name { color: var(--bronze); }
+
+  .score-block { text-align: right; }
+  .score-val {
+    font-size: clamp(13px, 2vw, 17px);
+    color: var(--green);
+    text-shadow: 0 0 8px var(--green);
+  }
+  .score-lbl { font-size: 7px; color: var(--dim); margin-top: 3px; }
+
+  /* ── METRICS GRID ────────────────────────────────────── */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+  }
+  .metric-cell { background: var(--bg); padding: 10px 12px; }
+  .m-label { font-size: 7px; color: var(--dim); letter-spacing: 1px; margin-bottom: 5px; }
+  .m-value { font-size: clamp(8px, 1.4vw, 10px); color: var(--green); margin-bottom: 7px; }
+  .bar-bg  { height: 4px; background: rgba(0,255,65,0.1); }
+  .bar-fg  { height: 4px; }
+
+  .bar-fg.ex   { background: var(--green);   box-shadow: 0 0 5px var(--green); }
+  .bar-fg.good { background: var(--yellow);  box-shadow: 0 0 5px var(--yellow); }
+  .bar-fg.fair { background: var(--orange);  box-shadow: 0 0 5px var(--orange); }
+  .bar-fg.low  { background: var(--red);     box-shadow: 0 0 5px var(--red); }
+
+  /* ── VERBATIM TICKER ─────────────────────────────────── */
+  .vticker {
+    border-top: 1px solid var(--border);
+    padding: 7px 14px 8px;
+    overflow: hidden;
+  }
+  .vticker-lbl {
+    font-size: 6px;
+    color: var(--yellow);
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+  }
+  .vticker-outer { overflow: hidden; width: 100%; }
+  .vticker-inner {
+    display: inline-block;
+    white-space: nowrap;
+    animation: vtick var(--spd) linear infinite;
+  }
+  @keyframes vtick {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+  }
+  .vquote {
+    font-size: 7px;
+    color: var(--green);
+    margin-right: 0;
+  }
+  .vquote::before { content: '\201C'; color: var(--yellow); }
+  .vquote::after  { content: '\201D'; color: var(--yellow); }
+  .vsep { color: var(--dim); margin: 0 18px; font-size: 8px; }
+
+  /* ── FOOTER ──────────────────────────────────────────── */
+  .footer {
+    text-align: center;
+    padding: 26px 0 10px;
+    margin-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+  .insert-coin {
+    font-size: 10px;
+    color: var(--yellow);
+    letter-spacing: 3px;
+    animation: blink 0.8s step-end infinite;
+  }
+  .footer-info {
+    font-size: 6px;
+    color: var(--dim);
+    margin-top: 12px;
+    letter-spacing: 1px;
+    line-height: 1.8;
+  }
+
+  /* ── UTILITIES ───────────────────────────────────────── */
+  @keyframes blink {
+    0%,100% { opacity: 1; }
+    50%      { opacity: 0; }
+  }
+
+  ::-webkit-scrollbar       { width: 6px; background: #000; }
+  ::-webkit-scrollbar-thumb { background: var(--dim); }
+
+  /* ── ASAT CLICKABLE CELL ─────────────────────────────────── */
+  .asat-clickable {
+    cursor: pointer;
+    position: relative;
+    transition: background 0.15s;
+  }
+  .asat-clickable:hover {
+    background: rgba(0,255,65,0.10) !important;
+  }
+  .asat-clickable .m-label::after {
+    content: ' ►';
+    color: var(--yellow);
+    font-size: 6px;
+    animation: blink 1.2s step-end infinite;
+  }
+
+  /* ── ASAT CHART MODAL ────────────────────────────────────── */
+  #asat-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: var(--bg);
+    overflow-y: auto;
+    animation: modal-in 0.15s ease-out;
+  }
+  #asat-modal.open { display: block; }
+
+  @keyframes modal-in {
+    from { opacity: 0; transform: scale(0.97); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  .modal-container {
+    position: relative;
+    z-index: 1;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 0 18px 48px;
+  }
+
+  .modal-header {
+    text-align: center;
+    padding: 28px 0 20px;
+    border-bottom: 2px solid var(--border);
+    margin-bottom: 28px;
+  }
+  .modal-back {
+    display: inline-block;
+    font-size: 8px;
+    color: var(--yellow);
+    border: 1px solid var(--yellow);
+    padding: 6px 14px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    margin-bottom: 18px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .modal-back:hover { background: var(--yellow); color: #000; }
+
+  .modal-title {
+    font-size: clamp(13px, 2.5vw, 20px);
+    color: var(--cyan);
+    text-shadow: 0 0 8px var(--cyan), 0 0 22px var(--cyan);
+    letter-spacing: 4px;
+    animation: glow-pulse 2.5s ease-in-out infinite;
+    margin-bottom: 8px;
+  }
+  .modal-sub {
+    font-size: 9px;
+    color: var(--magenta);
+    text-shadow: 0 0 8px var(--magenta);
+    letter-spacing: 3px;
+  }
+
+  /* ── CHART ROWS ──────────────────────────────────────────── */
+  .chart-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 14px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    margin-bottom: 5px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .chart-row:hover { border-color: var(--green); box-shadow: 0 0 12px rgba(0,255,65,0.2); }
+  .chart-row.cr1 { border-color: var(--gold);   background: rgba(255,215,0,0.05); }
+  .chart-row.cr2 { border-color: var(--silver); background: rgba(192,192,192,0.04); }
+  .chart-row.cr3 { border-color: var(--bronze); background: rgba(205,127,50,0.04); }
+
+  .cr-rank {
+    font-size: 8px;
+    min-width: 38px;
+    text-align: center;
+    color: var(--dim);
+  }
+  .cr1 .cr-rank { color: var(--gold); text-shadow: 0 0 8px var(--gold); }
+  .cr2 .cr-rank { color: var(--silver); }
+  .cr3 .cr-rank { color: var(--bronze); }
+
+  .cr-name {
+    font-size: clamp(7px, 1.2vw, 9px);
+    color: var(--cyan);
+    min-width: 160px;
+    max-width: 160px;
+    letter-spacing: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .cr1 .cr-name { color: var(--gold); }
+  .cr2 .cr-name { color: var(--silver); }
+  .cr3 .cr-name { color: var(--bronze); }
+
+  .cr-bar-wrap { flex: 1; height: 14px; background: rgba(0,255,65,0.08); position: relative; }
+  .cr-bar      { height: 100%; transition: width 0.6s cubic-bezier(.25,.8,.25,1); }
+  .cr-bar.ex   { background: var(--green);   box-shadow: 0 0 6px var(--green); }
+  .cr-bar.good { background: var(--yellow);  box-shadow: 0 0 6px var(--yellow); }
+  .cr-bar.fair { background: var(--orange);  box-shadow: 0 0 6px var(--orange); }
+  .cr-bar.low  { background: var(--red);     box-shadow: 0 0 6px var(--red); }
+
+  .cr-pct {
+    font-size: 9px;
+    color: var(--green);
+    min-width: 52px;
+    text-align: right;
+    text-shadow: 0 0 5px var(--green);
+  }
+  .cr1 .cr-pct { color: var(--gold); }
+
+  .chart-avg-line {
+    font-size: 7px;
+    color: var(--yellow);
+    text-align: center;
+    padding: 10px 0 4px;
+    letter-spacing: 2px;
+    border-top: 1px dashed rgba(255,255,0,0.25);
+    margin-top: 6px;
+  }
+
+  @media (max-width: 700px) {
+    .metrics-grid   { grid-template-columns: repeat(2, 1fr); }
+    .title-main     { font-size: 12px; }
+    .card-top       { gap: 10px; padding: 10px 12px; }
+    .cr-name        { min-width: 100px; max-width: 100px; font-size: 7px; }
+    .cr-pct         { font-size: 8px; min-width: 44px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TICKER -->
+<div class="ticker">
+  <span class="ticker-inner">
+    ★ ADVANCED SERVICES ★ HIGH SCORE LEADERBOARD ★ TOP PERFORMERS ★ KEEP IT UP ★
+    ADVANCED SERVICES ★ HIGH SCORE LEADERBOARD ★ TOP PERFORMERS ★ KEEP IT UP ★
+    ADVANCED SERVICES ★ HIGH SCORE LEADERBOARD ★ TOP PERFORMERS ★ KEEP IT UP ★ &nbsp;&nbsp;&nbsp;
+  </span>
+</div>
+
+<div id="stars"></div>
+
+<div class="container">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-deco">▼ ▼ ▼ &nbsp; PLAYER SELECT &nbsp; ▼ ▼ ▼</div>
+    <div class="title-main">ADVANCED SERVICES</div>
+    <div class="title-sub">◄◄ HIGH SCORE LEADERBOARD ►►</div>
+    <div class="period-badge" id="period-badge">PERIOD: ----</div>
+  </div>
+
+  <!-- SCORING WEIGHTS -->
+  <div class="weights-row">
+    <span class="w-chip">ASAT ×0.30</span>
+    <span class="w-chip">QA SCORE ×0.25</span>
+    <span class="w-chip">WSPPH ×0.20</span>
+    <span class="w-chip">CHAT AHT ×0.10</span>
+    <span class="w-chip">PRE-CALL ×0.10</span>
+    <span class="w-chip">PHONE AHT ✦ DISPLAY</span>
+    <span class="w-chip">VERBATIMS ×0.05</span>
+  </div>
+
+  <!-- LEADERBOARD CARDS INJECTED HERE -->
+  <div id="leaderboard"></div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="insert-coin">► INSERT COIN TO CONTINUE ◄</div>
+    <div class="footer-info">
+      DATA SOURCE: SUPERSET // SALESFORCE<br>
+      VERBATIMS: POSITIVE CUSTOMER MENTIONS ONLY<br>
+      © ADVANCED SERVICES TEAM
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<!-- ── ASAT DETAIL CHART ──────────────────────────────────────── -->
+<div id="asat-modal">
+  <!-- CRT scanlines overlay (reuses body::after look) -->
+  <div style="position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.12) 3px,rgba(0,0,0,0.12) 4px);pointer-events:none;z-index:2;"></div>
+  <div style="position:fixed;inset:0;background:radial-gradient(ellipse at center,transparent 50%,rgba(0,0,0,0.55) 100%);pointer-events:none;z-index:2;"></div>
+  <div id="stars2" style="position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;"></div>
+
+  <div class="modal-container">
+    <div class="modal-header">
+      <div><span class="modal-back" onclick="closeAsatChart()">◄ BACK TO LEADERBOARD</span></div>
+      <div class="header-deco">▼ ▼ ▼ &nbsp; ASAT RANKINGS &nbsp; ▼ ▼ ▼</div>
+      <div class="modal-title">AGENT SATISFACTION</div>
+      <div class="modal-sub">◄◄ ALL PLAYERS // BEST TO LAST ►►</div>
+    </div>
+    <div id="asat-chart"></div>
+  </div>
+</div>
+
+<script>
+// ╔══════════════════════════════════════════════════════════════╗
+// ║         ADVANCED SERVICES ARCADE LEADERBOARD               ║
+// ║                                                            ║
+// ║  TO CONNECT LIVE DATA:                                     ║
+// ║  1. Replace the AGENTS array with a fetch() call to        ║
+// ║     your Superset API (see SUPERSET INTEGRATION below).    ║
+// ║  2. Map the API response fields to the agent object shape. ║
+// ║  3. Update PERIOD to match your reporting window.          ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+// ── SCORING WEIGHTS (must sum to 1.0) ────────────────────────
+const WEIGHTS = {
+  asat:      0.30,  // Agent Satisfaction — higher is better
+  qa:        0.25,  // QA Score           — higher is better
+  wspph:     0.20,  // Productivity       — higher is better
+  aht:       0.10,  // Avg Handle Time    — LOWER is better
+  precall:   0.10,  // Pre-call Work %    — higher is better
+  verbatims: 0.05,  // Positive verbatims — higher is better
+};
+
+// ── REPORTING PERIOD ──────────────────────────────────────────
+const PERIOD = "2026 YTD";
+
+// ── AGENT DATA ────────────────────────────────────────────────
+// Sources: Superset 2026 Agent Scorecard + Chat & Phone AHT exports (2026-04-08)
+// aht = Chat AHT (decimal min, lower=better, scored)
+// phoneAht = Phone AHT (decimal min, lower=better, display only)
+// precall = Phone Pre Work Minutes (higher=better, scored)
+// Verbatims: PENDING.
+
+const AGENTS = [
+  { name: "NICK WILLIAMS",         asat: 71.43, qa: 82.40, wspph: 7.73, aht: 20.47, phoneAht:  6.14, precall: 0.39, verbatims: null },
+  { name: "KEVIN GALLAGHER",       asat: 71.70, qa: 88.27, wspph: 4.94, aht: 17.39, phoneAht:  9.18, precall: 0.69, verbatims: null },
+  { name: "JOSE ALBITER",          asat: 55.56, qa: 83.75, wspph: 5.57, aht: 17.18, phoneAht: 18.36, precall: 1.32, verbatims: null },
+  { name: "IVER GALARZA",          asat: 83.00, qa: 77.40, wspph: 4.06, aht: 14.81, phoneAht: 14.82, precall: 2.01, verbatims: null },
+  { name: "EDDY ARRIAZA",          asat: 85.71, qa: 90.80, wspph: 3.77, aht: 17.95, phoneAht: 13.90, precall: 1.20, verbatims: null },
+  { name: "MICHAEL KRAFT",         asat: 85.96, qa: 90.60, wspph: 3.73, aht: 15.38, phoneAht: 12.65, precall: 1.54, verbatims: null },
+  { name: "GERARDO HEREDIA",       asat: 80.56, qa: 90.42, wspph: 3.96, aht: 18.24, phoneAht: 13.18, precall: 2.66, verbatims: null },
+  { name: "HENRY BLAUL",           asat: 73.08, qa: 82.31, wspph: 4.31, aht:  9.94, phoneAht: 11.45, precall: 0.52, verbatims: null },
+  { name: "VINCE PHUNG",           asat: 66.67, qa: 96.50, wspph: 4.25, aht: 12.90, phoneAht:  8.45, precall: 1.08, verbatims: null },
+  { name: "MARIO RENTERIA",        asat: 68.89, qa: 86.85, wspph: 4.13, aht: 16.92, phoneAht:  9.46, precall: 1.04, verbatims: null },
+  { name: "FRET FRETWELL",         asat: 80.00, qa: 98.13, wspph: 3.43, aht: 16.26, phoneAht: 14.54, precall: 0.80, verbatims: null },
+  { name: "JADEN KRAUSER",         asat: 89.19, qa: 91.11, wspph: 2.99, aht: 16.39, phoneAht: 11.96, precall: 1.05, verbatims: null },
+  { name: "JARREL MARTIN",         asat: 66.67, qa: 84.40, wspph: 4.10, aht: 19.96, phoneAht: 12.49, precall: 0.87, verbatims: null },
+  { name: "HUMZA KHAN",            asat: 89.47, qa: 60.00, wspph: 3.25, aht:  9.82, phoneAht: 16.29, precall: 1.17, verbatims: null },
+  { name: "DAVIS JOHNSTON",        asat: 64.10, qa: 62.00, wspph: 4.37, aht: 15.25, phoneAht: 12.98, precall: 1.17, verbatims: null },
+  { name: "RONALD EVANS",          asat: 67.42, qa: 68.20, wspph: 4.03, aht: 17.66, phoneAht: 14.71, precall: 1.70, verbatims: null },
+  { name: "JOE LUNSFORD",          asat: 64.52, qa: 86.20, wspph: 3.93, aht: 11.66, phoneAht: 13.22, precall: 1.12, verbatims: null },
+  { name: "BRIAN TAYLOR",          asat: 79.35, qa: 78.33, wspph: 3.27, aht: 18.21, phoneAht:  7.02, precall: 1.55, verbatims: null },
+  { name: "KEIRAN LUNDY",          asat: 80.00, qa: 83.80, wspph: 3.11, aht: 22.86, phoneAht: 16.52, precall: 1.67, verbatims: null },
+  { name: "BRENDAN MALIA",         asat: 72.07, qa: 74.00, wspph: 3.58, aht: 24.84, phoneAht: 14.71, precall: 1.14, verbatims: null },
+  { name: "PETER CONNER",          asat: 81.13, qa: 86.43, wspph: 2.91, aht: 17.92, phoneAht: 16.41, precall: 2.36, verbatims: null },
+  { name: "CHRIS SLEIMAN",         asat: 74.07, qa: 85.60, wspph: 3.25, aht: 16.34, phoneAht: 16.01, precall: 4.26, verbatims: null },
+  { name: "CHRISTIAN FELLWOCK",    asat: 62.50, qa: 80.63, wspph: 3.87, aht: 17.63, phoneAht:  9.88, precall: 1.25, verbatims: null },
+  { name: "NATE HARGRAVES",        asat: 68.83, qa: 92.40, wspph: 3.37, aht: 21.27, phoneAht: 11.32, precall: 1.06, verbatims: null },
+  { name: "FARHAD MERCHANT",       asat: 73.20, qa: 76.20, wspph: 3.31, aht: 19.30, phoneAht: 14.21, precall: 1.32, verbatims: null },
+  { name: "BENJAMIN NICKLES",      asat: 67.92, qa: 89.60, wspph: 3.39, aht: 21.63, phoneAht: 13.58, precall: 2.55, verbatims: null },
+  { name: "JULIUS LAMBERT",        asat: 89.83, qa: 89.40, wspph: 2.31, aht: 22.60, phoneAht: 19.30, precall: 0.84, verbatims: null },
+  { name: "DREW EHRICH",           asat: 63.37, qa: 79.23, wspph: 3.76, aht: 20.43, phoneAht: 11.82, precall: 2.44, verbatims: null },
+  { name: "USMAN ALAM",            asat: 63.64, qa: 85.60, wspph: 3.58, aht: 14.94, phoneAht: 10.93, precall: 1.09, verbatims: null },
+  { name: "FERNANDO MARIN PERNIA", asat: 62.50, qa: 93.08, wspph: 3.45, aht: 17.89, phoneAht: 14.31, precall: 0.60, verbatims: null },
+  { name: "BRIAN FAY",             asat: 67.44, qa: 75.00, wspph: 3.40, aht: 24.97, phoneAht: 12.22, precall: 1.07, verbatims: null },
+  { name: "JUSTIN CUTTING",        asat: 66.67, qa: 87.00, wspph: 3.25, aht: 18.60, phoneAht: 10.28, precall: 0.74, verbatims: null },
+  { name: "JONATHAN ROMERO",       asat: 68.42, qa: 79.00, wspph: 3.24, aht: 14.25, phoneAht:  9.39, precall: 1.13, verbatims: null },
+  { name: "NICK POLLOCK",          asat: 70.77, qa: 76.20, wspph: 3.08, aht: 14.34, phoneAht: 15.87, precall: 1.30, verbatims: null },
+  { name: "DECLAN AKINS",          asat: 67.80, qa: 82.96, wspph: 3.13, aht: 18.97, phoneAht: 16.04, precall: 1.46, verbatims: null },
+  { name: "AZA DARGALAYE",         asat: 68.85, qa: 76.00, wspph: 3.07, aht: 22.56, phoneAht: 14.55, precall: 1.15, verbatims: null },
+  { name: "AIDAN BLINKAL",         asat: 53.76, qa: 82.88, wspph: 3.71, aht: 18.82, phoneAht: 14.65, precall: 1.77, verbatims: null },
+  { name: "BENJAMIN SPEAKMAN",     asat: 65.96, qa: 93.85, wspph: 2.96, aht: 19.94, phoneAht: 15.19, precall: 1.14, verbatims: null },
+  { name: "NOEL MARROQUIN",        asat: 57.29, qa: 69.00, wspph: 3.67, aht: 18.49, phoneAht: 11.96, precall: 1.46, verbatims: null },
+  { name: "SHREY GUPTA",           asat: 75.00, qa: 80.00, wspph: 2.47, aht: 16.99, phoneAht: 12.77, precall: 1.63, verbatims: null },
+  { name: "THAY LIM",              asat: 69.77, qa: 83.40, wspph: 2.54, aht: 17.81, phoneAht: 13.27, precall: 0.05, verbatims: null },
+  { name: "KEVIN BRUNO-JIMENEZ",   asat: 63.89, qa: 80.00, wspph: 2.84, aht: 16.18, phoneAht: 12.78, precall: 1.13, verbatims: null },
+  { name: "CLAY JARVIS",           asat: 66.10, qa: 70.29, wspph: 2.85, aht: 19.40, phoneAht: 14.37, precall: 0.90, verbatims: null },
+  { name: "WILLIAM MASSEY",        asat: 68.97, qa: 82.94, wspph: 2.54, aht: 23.49, phoneAht: 16.27, precall: 1.76, verbatims: null },
+  { name: "EDGAR MARTINEZ",        asat: 69.70, qa: 72.89, wspph: 2.61, aht: 23.12, phoneAht: 16.96, precall: 1.48, verbatims: null },
+  { name: "CORTRELL WHITFIELD",    asat: 71.23, qa: 76.80, wspph: 2.33, aht: 25.47, phoneAht: 15.28, precall: 1.44, verbatims: null },
+  { name: "KARINA FERRER",         asat: 73.08, qa: 65.80, wspph: 2.31, aht: 20.81, phoneAht: 14.68, precall: 1.79, verbatims: null },
+  { name: "AARON BUTTREY",         asat: 64.29, qa: 83.00, wspph: 2.56, aht: 17.82, phoneAht: 13.42, precall: 0.67, verbatims: null },
+  { name: "DYLAN MILLER",          asat: 66.10, qa: 46.50, wspph: 2.85, aht: 19.47, phoneAht: 14.32, precall: 1.88, verbatims: null },
+  { name: "CHASE BERBERICH",       asat: 61.36, qa: 90.45, wspph: 2.56, aht: 21.60, phoneAht: 17.85, precall: 1.09, verbatims: null },
+  { name: "EDMUNDO MARTINEZ",      asat: 75.86, qa: 75.80, wspph: 1.89, aht: 22.86, phoneAht: 20.58, precall: 1.33, verbatims: null },
+  { name: "LORIC HOUATCHESSI",     asat: 63.04, qa: 73.82, wspph: 2.51, aht: 17.85, phoneAht: 11.50, precall: 0.89, verbatims: null },
+  { name: "MIKE STAINBROOK",       asat: 62.86, qa: null,  wspph: 2.76, aht: 25.18, phoneAht: 15.86, precall: 0.59, verbatims: null },
+  { name: "MATTHEW MARCEN",        asat: 63.16, qa: 70.00, wspph: 1.93, aht: 28.14, phoneAht: 15.81, precall: 0.74, verbatims: null },
+  { name: "RENE DIAZ",             asat: 60.00, qa: 80.00, wspph: 1.95, aht: 31.54, phoneAht: 18.03, precall: 1.76, verbatims: null },
+  { name: "CAMERON MARRS",         asat: 62.96, qa:  0.00, wspph: 2.61, aht: 24.55, phoneAht: 12.70, precall: 5.07, verbatims: null },
+  { name: "BRIAN DOWLING",         asat: 49.32, qa: 62.78, wspph: 2.50, aht: 21.97, phoneAht:  9.88, precall: 0.82, verbatims: null },
+  { name: "GUSTAVO TREJO",         asat: 52.94, qa: 80.00, wspph: 1.85, aht: 26.92, phoneAht: 12.07, precall: 0.99, verbatims: null },
+];
+
+// ── SURVEY COUNTS — total surveys per agent, LKM AS Team Surveys (2026-04-08) ─
+const SURVEY_COUNTS = {
+  'NICK WILLIAMS':         53,
+  'KEVIN GALLAGHER':       63,
+  'JOSE ALBITER':           9,
+  'IVER GALARZA':          103,
+  'EDDY ARRIAZA':           47,
+  'MICHAEL KRAFT':          57,
+  'GERARDO HEREDIA':        41,
+  'HENRY BLAUL':           200,
+  'VINCE PHUNG':            53,
+  'MARIO RENTERIA':         94,
+  'FRET FRETWELL':          15,
+  'JADEN KRAUSER':          41,
+  'JARREL MARTIN':          86,
+  'HUMZA KHAN':             38,
+  'DAVIS JOHNSTON':         39,
+  'RONALD EVANS':           93,
+  'JOE LUNSFORD':           69,
+  'BRIAN TAYLOR':           97,
+  'KEIRAN LUNDY':           68,
+  'BRENDAN MALIA':         116,
+  'PETER CONNER':           55,
+  'CHRIS SLEIMAN':         109,
+  'CHRISTIAN FELLWOCK':     18,
+  'NATE HARGRAVES':         79,
+  'FARHAD MERCHANT':       102,
+  'BENJAMIN NICKLES':       62,
+  'JULIUS LAMBERT':         59,
+  'DREW EHRICH':           106,
+  'USMAN ALAM':            102,
+  'FERNANDO MARIN PERNIA':  40,
+  'BRIAN FAY':              44,
+  'JUSTIN CUTTING':         48,
+  'JONATHAN ROMERO':        82,
+  'NICK POLLOCK':           67,
+  'DECLAN AKINS':           61,
+  'AZA DARGALAYE':          67,
+  'AIDAN BLINKAL':         101,
+  'BENJAMIN SPEAKMAN':      49,
+  'NOEL MARROQUIN':        102,
+  'SHREY GUPTA':            36,
+  'THAY LIM':               46,
+  'KEVIN BRUNO-JIMENEZ':    39,
+  'CLAY JARVIS':            60,
+  'WILLIAM MASSEY':         60,
+  'EDGAR MARTINEZ':         68,
+  'CORTRELL WHITFIELD':     75,
+  'KARINA FERRER':          56,
+  'AARON BUTTREY':          42,
+  'DYLAN MILLER':           59,
+  'CHASE BERBERICH':        45,
+  'EDMUNDO MARTINEZ':       59,
+  'LORIC HOUATCHESSI':      95,
+  'MIKE STAINBROOK':        36,
+  'MATTHEW MARCEN':         37,
+  'RENE DIAZ':               9,
+  'CAMERON MARRS':          28,
+  'BRIAN DOWLING':          73,
+  'GUSTAVO TREJO':          17,
+};
+
+// ── VERBATIMS — Salesforce LKM AS Team Surveys, last 30 days (2026-04-08)
+// Source: ASAT=1 (promoter) responses with positive open-text comments only.
+const VERBATIMS = {
+  'AARON BUTTREY': [
+      'I hope it is resolved. Aaron did good as far as I can determine.',
+      'Aaron was very responsive. He sent correct instructions to resolve my issue.',
+      'Many thanks!!!',
+      'Great knowledge,answered all my questions',
+      'Erin was extremely helpful and patient in explaining my options. A+',
+      'Aaron was really patient and kind.',
+      'The help was awesome and I know we will resolve the options trade approval asap. I love the Robinhood app it is beginner friendly and I have learned so much',
+      'the customer service guy was really patient with me.',
+      'Was very helpful in the situation that I needed help and I gladly appreciate the service. Thank you so much. I hope you have more representatives like this that can get the job done.',
+      'He was very quick to answer my questions, and was straight to the point which I love. However, he was very quick to end the chat. He did not ask if I have any further questions.',
+      'Fantastic',
+      'Aaron went above and beyond, looking into other issues that I have with my Robinhood account.'
+  ],
+  'AIDAN BLINKAL': [
+      'Everyone was professional. But no one could let me know why I couldn\'t trade. I got I don\'t know or understand more than answers. I\'m asking for the team to review and get back me. Thank you for your time and have a great day.',
+      'Aidan was quick and effective. No complaints 10/10',
+      'great follow up to clarify my mistake',
+      'It was quick',
+      'Great and simple!',
+      'Aidan was very patient and willing to listen and help. My events/futures summary doesn\'t clearly show my net gain it had to be deducted from the available other categories but he was patient to sit through and sort it out with me.',
+      'Aidan was very helpful and delivered on what he said he would do for me. Thank you!',
+      'Very helpful and nice to talk to!',
+      'I should not have to call in to request a complete history of all my purchases (individual shares + dividends earned). Also need to choose tax lots if shares are called away for an options covered call assignment. Fidelity had this ability and is easy to',
+      'Aidan was very helpful and friendly with his resolution. I greatly appreciated his help and his attitude.',
+      'Just wanted to compliment an increasing good job with the predictions marketing. I have been critical in the past and flat refused to transfer my account from Schawb to Robinhood because of observed issues and concerns. When you do a great job I feel it i'
+  ],
+  'AZA DARGALAYE': [
+      'The wait was kind of long but great service',
+      'Great customer service',
+      'Fantastic help',
+      'He was great,',
+      'I think it\'s messed up that everybody else had bitcoin at a higher price than you guys did at four p m on february fourth, you can clearly look at everybody else\'s ticker and then look at what you guys\' ticker was and see that it was obviously manipulated',
+      'Quick response and very friendly',
+      'My questions were answered concisely and clearly in a short time. I was thoroughly satisfied with the call and explanations.',
+      'Aza was a great help and was a pleasure to work with on helping me with the issue.',
+      'he explained very well and I understood. I was satisfied and very happy.'
+  ],
+  'BENJAMIN NICKLES': [
+      'This call was good and the issue is resolved it seems. but the issue was created because credit spreads can be difficult to close or roll on Robinhood and because there was confusion rolling a credit spread. I ended up becoming a pattern day trader and th',
+      'I have been waiting a long time for this issue. Although Benjamin was great, I am worried that this will continue to drag on.',
+      'Benjamin was very professional, polite, and really helped me understand the TLRY reverse split options.  I',
+      'Benjamin was great.  Quick response and resolution.',
+      'I think robinhood is great.',
+      'Getting connected did take forever but easy going once chatting',
+      'Thanks for handling the adoption of prediction markets so well, maybe adding combos that could be make throughout the variety of events (example NBA + Baseball in the same combo)',
+      'I never got to interact with anyone, but my problem was solved while o was waiting.',
+      'Benjamin was courteous and professional.',
+      'Benjamin was extremely helpful in addressing my concerns. i',
+      'Benjamin answered all of my questions and was very helpful!  Just hoping Robinhood adds options trading for professional traders soon as other brokerages currently support it.',
+      'Great customer service thanks!'
+  ],
+  'BENJAMIN SPEAKMAN': [
+      'He was great and I appreciate his patience and communication. Thanks.',
+      'Very Good help',
+      'if there is a specific date on liquidation. it will be helpful to plan things out',
+      'Walked me through the process to understand it. Much appreciated.',
+      'Ben is great and very attentive',
+      'Ben was very patient with me. I feel the app does not have enough guardrails in place. I was able to borrow money without realizing I was borrowing money, leading me to incur fees from a margin account. If you are asking my opinion, the app should make th',
+      'Benjamin was very patient with me and was able to explain the situation I was having difficulty understanding.  He was a professional at his job!',
+      'Benjamin was very helpful',
+      'Very professional',
+      'Good service, makes sense, I will be leaving Robinhood. I will be coming back when I can resolve the option trading and file to be applied again. Thank you Robinhood'
+  ],
+  'BRENDAN MALIA': [
+      'He resolved but the way I get was confusing from Robinhood system.  im not still convincing',
+      'Nothing against Brendan he is not a software developer (atleast I don\'t think) but you can go back and read the chat log I spoke my peace about legging into an option spread. I think it\'s great feedback and I would love to see it implemented. Cheers fuck',
+      'Brendan was amazing. Extremely knowledgeable!',
+      'Branden was amazing explaining with details the issue, I appreciate the support.',
+      'He did an awesome job, very urgent to resolve my issue',
+      'Brendan was really helpful and explaining things at a technical level and at a layman\'s level. I appreciate the assistance. ￼',
+      'He was a great agent!',
+      'Brenden help explain the whole prediction market process to me and solved my issue for me very very fast. 10/10 employee 👍🏽.',
+      'You might want to consider adding more ability to customize the home screen with what we want to show up, and even in what order. Thanks for you help!',
+      'he was very helpful and was able to tech me',
+      'Brandon was very professional and helped out with all my questions',
+      'May the process smooth.',
+      'I really did appreciate it. He was very knowledgeable and had very good patience towards me. Understanding how it works once again thank you I do appreciate it. ￼',
+      'The message telling me I needed 25k to do multiple options trades a day was confusing. I didn\'t realize my balance solved the issue until I called in and had it explained to me.',
+      'He was AMAZING! Very patient and very helpful. Thank you!',
+      'He did a fantastic job, thank you!',
+      'Great and efficient customer service'
+  ],
+  'BRIAN DOWLING': [
+      'Brian was very supportive , reran my numbers, submitted request to his back office, overall he handled issue patiently and positively. Great job!',
+      'Absolutely calm and knowledgeable person.',
+      'I don\'t know that it was Brian necessarily. The call dropped at the end of the call a little bit abruptly. Brian was professional, courteous, kind, and informed to that point.',
+      'Always had great experience with Robinhood customer service team.',
+      'Brian was knowledgeable and efficient',
+      'Thank you so much for your timely assistance. I accidentally pressed the wrong button and felt completely at a loss; I really appreciate your help—I\'m very happy now!'
+  ],
+  'BRIAN FAY': [
+      'He explained the issue clearly',
+      'he was great 👍🏽',
+      'Brian was very patient and thorough looking into my issue and making sure I understood the situation',
+      'Brian was excellent! Im glad he took the extra effort vs. the simple answer of “we can\'t do it”.The problem is entirely with Robin Hood (RH). Being against company policy to move over a trade when it was clearly bought in the wrong account exposes RH for',
+      'Helpful and professional thanks so much'
+  ],
+  'BRIAN TAYLOR': [
+      'The whole team, Maria, D, Brian were amazing. Lovee working with the team to help me understand some PDT issues.',
+      'Great guy',
+      'Brian was absolutely amazing. Answered my questions in a timely manner, and was entirely correct. The man deserves a raise!',
+      'That was really helpful',
+      'Bro was incredible, both guys were, really impressed, actually',
+      'Brian was outstanding - super helpful after the initial agent was extremely slow to respond',
+      'Brian, perfect support.',
+      'Brian was very knowledgeable and courteous. I feel great about continuing to invest on Robinhood!',
+      'make connection with live agent faster and user friendly!!!',
+      'Brian is by far the most helpful employee I\'ve gotten support from',
+      'Brian was great! Kinda shady of Robinhood to make that change in perdiction market. Seems the information on weather underground is very bland compared to the national weather service.',
+      'thank you for helping me and even making things right. I appreciate all of your help and support. you guys are good people. God bless!',
+      'please remove the Discover more and  Predictive market sections. Too much nonsense on the screen. Thank you.',
+      'Overall, Brian provides excellent customer service. He deserves a bonus for that!',
+      'Originally I left a review with the AI chat bot, since this review/survey didn\'t come up. But I Basically said how Great Brian was. He was Amazingly helpful and very Personable!! It made chatting with him enjoyable. He was very professional about answerin',
+      'Brian was extremely helpful, however upon looking into it more the data pulled from the cited source in the contracts “disclosure” matches the contract I selected. To the exact degree , was told it might have been inaccurate based on decimals less than 1.'
+  ],
+  'CAMERON MARRS': [
+      'So kind and very nice',
+      'very kind and pro'
+  ],
+  'CHASE BERBERICH': [
+      'Chase was the best example of what customer service should be. He continued to figure out how to solve my problem instead of saying I don\'t have to deal with this today. He was the third agent I dealt with, and the only one to solve my problem.',
+      'you guys are awesome',
+      'Chase was very professional and helpful',
+      'Robinhood is always above and beyond to help the people',
+      'That was quick chat and short time solve'
+  ],
+  'CHRIS SLEIMAN': [
+      '10/10 experience and guy',
+      'Everything got solved, top',
+      'Very helpful 👌',
+      'very happy with the support and efficiency',
+      'Both customer service reps were excellent and proficient in answering my questions.',
+      'Yes, he was able to explain very easy to understand language on how the football game score worked in why my investments didn\'t show it yet. He was outstanding thank you',
+      'Very friendly support. Understood my problem and immediately told me what was the issue.',
+      'I really can\'t say yes or no yet on whether the issue was resolved since I won\'t know for a few days. I objected to the Prediction stuff being moved to the top of the app page. I have ZERO interest in this market, but it moved from the bottom of the page',
+      'The rep was very helpful and responsive, in additional to being knowledgeable. He was able to resolve my issue!',
+      'Just had to wait it out. Chris was awesome though. Asked me about my morning while my babe and kids were going nuts in the background trying to get ready for school. Thanks Chris. 💯',
+      'chris was awesome, answered my questions quickly amd professionally, and was super friendly. give this man a raise.',
+      'Didn\'t resolve issues however Chris was very informative and was able to tell me how and possibly when issue could be resolved. He was also had excellent customer service.',
+      'the costumer service representative was very professional and spoke clear very kind and professional.   Thank you',
+      'He definitely helped me, the Chat bot kept saying that my credit card was active and was sent to me Dec 7 of 2025, when it wasn\'t. He helped clear that up.',
+      'Cris was of great help!',
+      'The support person was great.. The AI never mentioned that there is a designation that allows money to be withdrawn with margin',
+      'Excellent work',
+      'He was great to work with and fixed my issue! Thank you Chris!',
+      'Simple, quick and helpful.',
+      'A mistake on my part that Chris handled perfectly.',
+      'Chris was great',
+      'Amazing customer service please give them a raise!'
+  ],
+  'CHRISTIAN FELLWOCK': [
+      'The guy who helped me was great and finally fixed my issue after many other tech people did nothing',
+      'Very helpful',
+      'I\'m a happy Robinhood customer and $HOOD shareholder. Keep up the great work!'
+  ],
+  'CLAY JARVIS': [
+      'No, thank you',
+      'I appreciate the 24 hour assistance with questions.',
+      'Extremely happy with the service I received today. I\'m a senior who\'s still in the learning stage.  It\'s very helpful to have understanding customer service representatives of our feelings.',
+      'great with explanation and providing me with next steps..the representative was also very determined to make sure they answered all my questions',
+      'there all amazing you should pay them',
+      'He was Awesome,Patient,and very supportive and concern.Hopefully I want  have to contact  support  with any other  issues, if so He assured me that I definitely  could..Thank you',
+      'Very helpful agent, easy to understand.',
+      'Would love at least level 1 options to be available for registered representatives:)',
+      'Very helpful',
+      'Great help.'
+  ],
+  'CORTRELL WHITFIELD': [
+      'Contrell is excellent. AI chat bots infuriate me. Give me more humans, and less robots',
+      'Agent was very helpful and fast to respond.',
+      'provide 800# for support....having to go through 4 to 6 prompts with chatbot is extremely annoying..thanks',
+      'Was really quick and useful',
+      'Great customer service',
+      'Great support',
+      'The Robinhood representative was polite, friendly and knowledgeable about my questions.',
+      'the chat I had with Shrey around 12.38 yesterday was the best chat I\'ve had here !!!!    he/she was amazing and very helpful !   definitely need to keep this individual employed at Robinhood !!!  I\'m actually waiting on a response email from this individu'
+  ],
+  'DAVIS JOHNSTON': [
+      'Davis was clear and to the point, got my issue resolved quickly. He did a great job.',
+      'Customer support did a wonderful job clearly explaining what was wrong.'
+  ],
+  'DECLAN AKINS': [
+      'Your customer service is always very helpful!',
+      'still, when I buy an stock at least 90 percent of the Time I pay more when buying, and receiving less when buying.  I guess this is the Way stock trading goes, even that it\'s not right. otherwise I am very happy with Robinhood trading.',
+      'Easy to get desired answers.',
+      'Appreciate the support, Declan was great.',
+      'Great customer service from Declan',
+      'Streamline the process of exercising calls that may be out of money. ￼ get the necessary disclosures and move on quickly. No need to keep the client on hold for hours.',
+      'Declan and Zachary were incredibly professional and efficient. I could not have had a better experience.',
+      '10/10 support',
+      'Declan was an amazing support person. Very helpful and made me feel valued as a gold member.'
+  ],
+  'DREW EHRICH': [
+      'Drew was great but unfortunately the feature I wanted (limit order in stock and/or ETF) is not available for me.',
+      'Drew was very pleasant I appreciate the help',
+      'Drew did an excellent job!!',
+      'I confused myself on how options trades work, even though I had the right idea to begin with. Panicked, I called support to get an answer. Drew was very knowledgeable and reassured me that my original understanding was correct. Thank you so much!',
+      'Drew was fast, efficient, and extremely helpful',
+      'thank you for your wonderful helpful staff',
+      'customer Service was great and very resourceful',
+      'great help. I didn\'t realize that the issue is with my pending orders. thanks again',
+      'Great help by Brandon and a gentlemen from the derivatives team.',
+      'The assistant was great',
+      'I wish it was possible to control whether prediction markets are visible or not within the settings of the app, but using the chat function was able to resolve my issue quickly and without problem.',
+      'Drew was very helpful and quick.',
+      'Double checked if my concern was fixed and accurate. Very friendly and helpful.',
+      'should pay interest on Retirement Account.  should pay interest on Cash Covered PUTS.  should not charge for the Gold Membership, especially with high income account.  should offer free wire service.  I love the bonuses and Really Love the Margin Interest',
+      'thank you',
+      'Drew was professional, fast, and clear. Much appreciated.',
+      'Drew was amazing!!!!',
+      'Drew is excellent'
+  ],
+  'DYLAN MILLER': [
+      'I love Robinhood trading platform. It\'s one of my favorite trading platform of all time, but I need my gold card from you guys.',
+      'Thank you',
+      'Dylan was awesome, give that man a raise and a full week of pto',
+      'Daylan was professional and attentive to what I was trying to achieve. I wasn\'t aware that I had created a change  in the app, and he guided me through the process smoothly.',
+      'Awesome job!',
+      'Dylan was very helpful.',
+      'Great help',
+      'Amazing customer service',
+      'Dylan is an excellent customer care center representative. He fixed all my issues',
+      'Great service!',
+      'Great  job Dylan'
+  ],
+  'EDDY ARRIAZA': [
+      'Eddy was great!',
+      'Eddy was awesome and resolved my issue quickly. He created a very welcoming and informative customer experience. Thanks again!',
+      'Very professional',
+      'Resolution is not possible by ROBINHOOD team, slowest response to easy fixes.',
+      'all 3 assistants were amazing! thank you',
+      'I own a market research company for 42 years and with all respect I would show this comment to your CEO he has an amazing product he just needs to be more straightforward with the people not feel so much like the runaround not saying that I ultimately got',
+      'Very easy. Great customer service.',
+      'customer service was great',
+      'Eddy was great'
+  ],
+  'EDGAR MARTINEZ': [
+      'Always great service as usual. I have never had any issues that y\'all haven\'t been able to help fix. Thank you.',
+      'you guys are the best and I love Robinhood.',
+      'No thanks',
+      'Edgar was so pleasant and patient',
+      'Thank you for helping me understand what happened!',
+      'Edgar was extremely helpful, friendly, and worked rapidly to solve the problem. He is a great representative of RobinHood',
+      'All is good thank you!!',
+      'thank you for granting more time to cover a margin call . much appreciated',
+      'Very polite, knowledgeable…pleasure to work with him',
+      'All three agents (Don, Nigeria and Edgar) who helped me were quite helpful, especially Edgar in the Options and Margin department. He took his time to review my account and broke down everything I needed to know. He seemed excellent with assisting clients'
+  ],
+  'EDMUNDO MARTINEZ': [
+      'Edmundo was excellent! Very helpful and professional with resolving my issues !',
+      'Would be better if he could\'ve explain better was what happening with the issue I had, but overall Eduardo did a good job. I appreciate the help.',
+      'Edmundo was very Helpful & Patient with my questions & concerns!!! Thank You.',
+      'Great info, my question was answered',
+      'It was a sym bug looks like, no worries. Thanks',
+      'Thanks allot!!',
+      'This was a very professional and helpful customer service agent. He was making any effort possible to clarify the situation!',
+      'Eduardo helped dig into the situation to find out what caused the issue. He actually had an idea of the cause right off the bat, just from looking at some transaction dates, great application of experience.',
+      'he kindly reviewed my account and found the issue. communicated the issue and ultimately resolved it.',
+      'Fantastic customer service 👏',
+      'No thank you thank you very much for everything',
+      'Great guy like all in margin all help me!!',
+      'Could\'ve been more clear with the covered call the account restriction information',
+      'You\'re rep very helpful and very professional. Thanks for the help.'
+  ],
+  'FARHAD MERCHANT': [
+      'Great explanations from this guy straight forward and understanding.',
+      'Farad was extremely knowledgeable and guided me on how to fix the issue.',
+      'Thank you.',
+      'It\'s resolved for now and I need to re confirm on Monday.. This is tedious manual process everytime I get options assigned. ETrade already built a feature for user to do it on their own.. Hope Robinhoid roll this out soon.',
+      'You guys have a great team👏🏻👏🏻👏🏻👏🏻￼',
+      'Thank you',
+      'The customer service rep I spoke with was very professional and helpful but the process is absolutely horrendous! The chat doesn\'t help and getting to get a real human on the phone is next to impossible. I decided to take a call back instead of wait and o',
+      'Very helpful guy Thank you',
+      'Excellent customer service by Farhad',
+      'Helpful and resolved my issue.',
+      'we spoke about your at least adding the BRTI to your platform. Unfortunately it\'s currently making your own platform unhelpful to use with prediction market. Looking forward to whenever y\'all figure out the collaboration and licensing. Thank you.',
+      'Great customer service thank you',
+      'Everything was resolved in a timely manner and I was able to reach out and get assistance when it was needed.',
+      'Very Very helpful and thank you so much.',
+      'Thank you for the help! Everything was excellent!',
+      'Support guys was great and helpful',
+      'I\'ll be reaching back out if Prediction Markets don\'t disappear from my app in 1-2 days like Farhad said. They have great customer service btw (or maybe it was because the problem was actually resolved? I digress)'
+  ],
+  'FERNANDO MARIN PERNIA': [
+      'Fernando was very helpful.',
+      'great job!',
+      'Thank you',
+      'Fernando was great, he helped me to add a note to my account that I would be transferring in 20k the following day and not to close any of my positions. Not 2 hours later I had several of my positions closed despite the note on my account. The following d'
+  ],
+  'FRET FRETWELL': [
+      'Excellent explanation',
+      'Why chatbot not able to solve this.. if it could that\'s great',
+      'Agent was very helpful',
+      'Excellent customer service',
+      'Great service from Michael'
+  ],
+  'GERARDO HEREDIA': [
+      'Very impressed by the customer service! Keep it up',
+      'Customer support is always so friendly and helpful! Makes a huge difference! You guys are killing it! Keep it up🤟',
+      'knowledgeable customer service representative was very helpful explaining the issue and resolving it',
+      'Very responsive & Excellent communication!',
+      'thank you, nice lady!!!',
+      'Very professional and knowledgeable about how to resolve the account issue.',
+      'Rep was super helpful, polite and explained the process to me clearly and concisely. If there is an award I recommend it.',
+      'Gerardo was great!',
+      'Very patient, dealt with my own mistake kindly. Much appreciated.',
+      'Very helpful & knowledgeable, truly helped me with my issue'
+  ],
+  'GUSTAVO TREJO': [
+      'Great help',
+      'thanks so much',
+      'Gus was very helpful and knowledgeable'
+  ],
+  'HENRY BLAUL': [
+      'Henry was super quick, answered the question without any layered on mumbo jumbo, just straight up answered. That\'s exactly what I wish for everytime. Henry deserves the biggest raise ❤️ the best',
+      'I was concerned that the AI did not “see” the trade at all, and referred to including an order # that was not on my history. Henry quickly advised me that the order should be resolved in time. I appreciate his courtesy and look forward to the trade settle',
+      'I am new to sports betting trading on Robinhood. The rep answered my question quickly and politely.',
+      'Working on it. But Henry was very helpful',
+      'He did a phenomenal job and was pleasantly helpful! Just wonderful!',
+      'Explained my problem and the solution. Well done.',
+      'Very good , professional worker',
+      'Henry was great customer service.',
+      'He was nice but a little condescending. His comments insinuated that he knew less than what he thinks he does. But he was nice and tried his best to be helpful. However I could tell that he didn\'t exactly know what he was talking about. For instance, I to',
+      'It seemed as if I was scammed out of a win.  It was clear I made the right prediction, but I only found out you guys cancelled the order when the game ended.',
+      'very polite, professional. liked the interaction. appreciate the patience. lot of knowledge',
+      'Very fast response. Good agent whether human or bot.',
+      'Henry, was great 👍🏼',
+      'when you post deficit or margin call, a due by date would be helpful',
+      'it was handled very professionally.',
+      'The reps were great especially henry',
+      'Prompt response',
+      'Henry was great. It took like 15 minutes to get the AI bot to connect me with a person.',
+      'I would have liked an explanation as to why I do not have access to custom combo rather than just say  it\'s not available. Clearly it was available at one time, or in other markets, et. Otherwise  I was satisfied with the answer.',
+      'Polite agent, thanks for the help.',
+      'Henry is patient, I\'ll give home that!',
+      'Great customer service',
+      'Great service',
+      'my issue was resolved. and I\'m happy about it',
+      'Straight to the point and quick. That\'s why I love robinhood',
+      'some features are not clear, that has an impact of using Robinhood app',
+      'Great support',
+      'There is no easy way to see realized profit and loss from the investment in prediction market',
+      'Great job Henry.',
+      'Appreciate the speed and expertise',
+      'Thank you so much RH. You solved the problem almost instantly. Like I mentioned, this is becoming my main source of income. Thank you Robinhood for making it possible.',
+      'Thanks for explaining the valuation of stock options that are transferred',
+      'fast and easy'
+  ],
+  'HUMZA KHAN': [
+      'Thank you',
+      'No excellent support team got right back with me. Was not able to fix the problem over the phone but did some research and got back with me at the exact time I was told. I was not able to answer the phone, but he reached back out and sent me a message and',
+      'Greetings and thank you for an all around well managed investing platform. Suggestions which come to mind are increasing your base of stocks offering fractional share capability and increasing the pre market hours for the penny stocks. Unfortunately, the',
+      'Not because he didn\'t want to, I was unaware that it was a regulatory standard for all.  I was under the impression that the pdt flag was RH stand alone rule. But Thomas was kind and informative',
+      'Very helpful and explained everything well for someone who is fairly new!',
+      'Amazing customer service ￼',
+      'He answered all my questions and was amazing. Thank you!',
+      'awesome very polite and professional. as well as knowledgeable.',
+      'Excellent service!!',
+      'Very responsive and determined what the issue was.',
+      'Great stuff',
+      'I love Robinhood you all are excellent'
+  ],
+  'IVER GALARZA': [
+      'the rep was simply excellent!',
+      'excellent fast support',
+      'Iver was great he was very helpful',
+      'Maybe resolved he said it should resolve tonight or tomorrow morning due to the cash being tied to a futures position I closed today',
+      'Waiting for derivative team support was worth the wait. I\'m very satisfied and didn\'t have to worry for long. Peace of mind is very important for me :)',
+      'The support personnel was amazing.',
+      'The agents were very professional',
+      'Rep was soooo helpful and knowledgeable!! Thank you!',
+      'thank you.',
+      'No representative did very well thanks',
+      'He assured me that you can disable prediction market feature and it solved my problem',
+      'It was fast and helpful',
+      'very good representative.',
+      'Fast help!  Thankyou  !!',
+      'Very.  Informative.  Thanks',
+      'yes. I love using robinhood. you guys have opened a whole new world to me.',
+      'Helpful. Patient. Knowledgeable.',
+      'Iver was extremely helpful',
+      'Awesome prompt service.  Iver was great and very professional',
+      'Really appreciated the support and enjoyed our conversation.'
+  ],
+  'JADEN KRAUSER': [
+      'very good support',
+      'Jayden opened a case for me. Waiting to see if it gets resolved',
+      'The agent was fast and very understanding providing different options and effective plan, this is a great customer service!',
+      'Jaden was very professional and helpful',
+      'Jaden was very nice and professional.  He did a great job helping me!  Thanks Jaden!',
+      'He did a great job eased my troubles highly recommend him as a customer service representative ￼',
+      'Thanks for the help! I love Robinhood!',
+      'I love Robinhood\'s text support team. Great job Everyone.'
+  ],
+  'JARREL MARTIN': [
+      'Quick and knowledgeable service',
+      'Human was helpful. AI assistant was not very helpful. But it did get me to the human, so that\'s good I guess. Anthropic\'s AI customer service is WAY better.',
+      'Great customer service! Very knowledgeable and helpful.',
+      'very friendly and helpful!',
+      'Excellent and efficient service. I appreciated that the bot recognized its limits and seamlessly transitioned me to a live representative. The agent was knowledgeable, spoke naturally rather than from a script, and addressed my transfer deficit issue.',
+      'Jarrel was great and solved my problem quickly.',
+      'Both reps were 100% outstanding and they handled my issue with utmost support and respect. Thank you Robinhood!',
+      'Did amazing job!',
+      'amazing response great customer service that most important a human agent call me back. was kind and knowledgeable',
+      'Very helpful great help',
+      'Thank you for your patience.',
+      'Truly an amazing representative & VERY knowledgeable. The representative was able to answer all of my question very thoroughly and very quickly. Thank you so much Mr.representative for all of the detailed breakdown of the more complex questions that I had',
+      'Great job, cleared up confusion I was having that the AI chatbot was not able to resolve'
+  ],
+  'JOE LUNSFORD': [
+      'AI agent was u helpful. Give a circular suggestion.',
+      'The AI support takes a lot of prompts to get to an options support agent. Update the system prompt maybe to key in on words like “change my option assignment” to go directly to an agent. The 4-5 prompts take a while and is a little annoying. Or maybe just',
+      'Thanks for having great CX.',
+      'Joe was amazing very straightforward and helpful amazing job truly robinhood is the best app never had such quick and easy service anywhere else thank you joe',
+      'Great service',
+      'Just need your help with my situation right now thank you Lialy',
+      'The rep was knowledgeable,  compassionate,  and helpful. He listened to what my issue was and was able to provide coaching on how I could do things in the future and helped me turn a really dark moment into hope. please thank him.  I went from wanting to',
+      'Joe is  the best with good customer service  skills. We need more of is kind.',
+      'Great supporting agent',
+      'AI chat bot has become incredibly useful! Usually I rush through the bot Qs to get to a live agent. In this last experience the bot answered in great detail nearly 80% of my questions. The customer service and support agents have been very helpful, armed'
+  ],
+  'JONATHAN ROMERO': [
+      'Great company can\'t wait for my cc',
+      'I am unable to log in on my phone device (Which I have always used) due to the selfie requirement. I do not feel comfortable submitting a selfie. There should be an option to receive a text message and/or security verification to my laptop chrome browser',
+      'I\'m old school and actually prefer talking to a person. yet, this was very smooth and the person on the chat was very helpful.',
+      'Good job 👍',
+      'I appreciate the ease in which I was able to connect with a real person. I messed up and have almost the same issue on kraken and cannot reach a human to save my life',
+      'Thank you for Conan and Robinhood',
+      'Thank you',
+      'I had a great experience speaking to Jonathan. He was helpful and informative.',
+      'Great services',
+      'Great guy',
+      'He is a really good representative, very friendly and patient, he helped me to learn how the app works',
+      'The AI chat and Jonathan were very helpful and solved my issue.',
+      'Very professional and accurate',
+      'I want to commend Jonathan for his exceptional support today. I overlapped one of my legs on my iron fly and he was able to calmly and succinctly help me through the situation even though I was a bit panicky his calm demeanor helped me through the situati',
+      'Rep was very knowledgeable and helpful. Issue was resolved very quickly.',
+      'Jonathan was outstanding in addressing and troubleshooting my issue. I appreciate the assistance team'
+  ],
+  'JULIUS LAMBERT': [
+      'Julius was great',
+      'Julius explained everything perfectly thank you so much',
+      'Extremely helpful!',
+      'Supporting communications were fast addressed  and very professional ￼',
+      'The agent is pleasant, helpful, courteous and fast. Thanks for your help!!!',
+      'Julius was very patient and helpful, by far one of the best support teams out there!',
+      'Excellent support . Very knowledgeable.',
+      'My issue was to just send a notification up the chin. The person I talk to was great! I just hope RobinHood will listen.',
+      'Very helpful. Hope you can improve the product so I don\'t have to reach out to customer support when I need to set up a trade to clear my deficit.',
+      'Give my man Julius a raise, he\'s a nice guy 10/10',
+      'For the future it would be helpful if the day trade margin limit was more clearly available without digging into my account details. Julius helped resolve my issue with great speed and expertise. Resolving this much of a call in 5 days is tight , I unders',
+      'The agent was eager to help, courteous and friendly.',
+      'Great service',
+      'He\'s great!',
+      'Julius was so professional and understanding. Solved my problem quickly and efficiently. One of my best customer service across all companies to date.',
+      'This 24 hour feature is helpful.',
+      'She\'s great',
+      'Julius was very helpful! Thank you!',
+      'Representative was extremely knowledgeable and helpful.'
+  ],
+  'JUSTIN CUTTING': [
+      'The margin call was not clearly resolved at the time of contact. I was told it would clear by midnight, but the platform did not clearly explain why my funds were locked or which specific event contract or settlement exposure was causing the restriction.',
+      'thank you',
+      'Great, thank you.',
+      'Very courteous',
+      'He was very helpful as I am brandnew to this',
+      'apparently cellular data is wrong and has me placed outside the US which is incorrect.  Justin told me to turn the wifi on to see if that resolved the location issue and it did',
+      'The guy that helped me was fast and made things super easy to understand which isn\'t usual for customer service on apps. Great hire by yall'
+  ],
+  'KARINA FERRER': [
+      'This was a very anxiety driven morning, it took a bit to get sorted but the Robinhood team dealt with my issues professionally and got it solved. Each rep that I talked to did their best to get the issue resolved as it was a rare occurrence and doesn\'t us',
+      'Great service!',
+      'Thanks for the feedback!',
+      'Provided good service and resolved my issue.',
+      'Karina did an excellent job and zend',
+      'Representative was courteous and concise effective. Thank you!',
+      'you have the best a clients support.  I am so happy for that',
+      'Very helpful',
+      'Thanks Karina!'
+  ],
+  'KEIRAN LUNDY': [
+      'Was unable to get a clear answer as to why I was (and still am) getting different candle high/lows on candles (and high of the day),on the same timeframe between my mobile app and desktop legend and which one i can reliably trade and chart off of. The per',
+      'she\'s awesome',
+      'I wish you be alittle more careful before releasing reports and make sure it is correct and accessible before sending.  customer service was great once I was able to speak with someone.',
+      'Very knowledgeable and extremely helpful!!!!',
+      'it took 3 agents to solve an account restriction issue. it took as solved!',
+      'he listened patiently and promised to forward my suggestions to the right department and was very respectful and nice.',
+      'waiting on final approval..but so far he told me.it will.be solved',
+      'I noticed the contract price was unfairly priced , I couldn\'t look at the minute candles when I executed the trade, it was clearly not priced for .87 cents at the tail end which caused me to mistake and picked the wrong contract.',
+      'Professional, helpful and straight to the point',
+      'Keiran was very helpful and patient. Very knowledgeable as well.'
+  ],
+  'KEVIN BRUNO-JIMENEZ': [
+      'Great support, quick and effective. Solve my problem in no time. Thanks, Kevin!',
+      'Superb, simple, understandable, to the point.  Kevin needs a raise.  Thank you, Mr. Kevin.  Sincerely, ~Robert Davis',
+      'More and clear reminder and notification before things get to a level that is not reversible',
+      'Not really resolved but gave me more information',
+      'excellent',
+      'Kevin did great with what he could. Its outside his control, I just hope Robinhood will have a touch of grace given it was a Friday and will be resolved on Monday. But even though my investment skills clearly need hel, I have enjoyed using Robinhood. Hope'
+  ],
+  'KEVIN GALLAGHER': [
+      'I reported a bug in the version I was using.  Kevin was helpful and pleasant.',
+      'Very helpful!',
+      'We discussed short selling and banking. As a successful 21 yo, I really would appreciate a timeline on when I\'m getting banking products/shorting. I will be purchasing a house in the next 6 months and it would be ideal if I could bank with Robinhood. I\'m',
+      'I have had an issue with my options chart for several months now and trying to be patient. I ask about it weekly and don\'t understand how it can take this long to fix a simple glitch.',
+      'I appreciate Kevin\'s time working through an option issue and flagging for the backend team to check the p/l calculation.',
+      'Great service!',
+      'thank you !!! ps : put a roll but on your options to make it easy'
+  ],
+  'LORIC HOUATCHESSI': [
+      'Very quick to come up with a solution.',
+      'answered all my questions clearly',
+      'Loric was quick and efficient. Good job.',
+      'I was really happy',
+      'would have appreciated if there is a feature in RH app or desktop to view the P/L report directly for a custom date range instead of reaching out to the support as it\'s an over kill and inconvenience.',
+      'Appreciated the great help. Definitely gives me more reassurance of using Robinhood.',
+      'Thank you!',
+      'Both individuals were incredibly helpful.',
+      'The rep\'s explanation was clear and understandable',
+      'Great job robinhood team!'
+  ],
+  'MARIO RENTERIA': [
+      'Thanks hood',
+      'The client support was polite and professional. I just want to suggest to Robin Hood EU to add all the dividend payments received to the monthly report and also add the voice:total dividends received this month:€. Thank you in advance and have a great d',
+      'Glad I can rely on y\'all to resolve issues.',
+      'Mario was very helpful!',
+      'Very informative with great reassurance',
+      'Very helpful',
+      'outstanding customer service skills. very patient. knowledgeable and helpful. I enjoyed every second speaking to him. the call also got disconnected and immediately called me back. this is really the type of service I was looking for from Robinhood',
+      'The team helped identify a discrepancy and resolved it immediately!',
+      'Helpful in clarifying for me.',
+      'I love Robinhood!!!',
+      'Although Mario did a good job, if the program was working properly it should have been totally unnecessary for him to become involved.',
+      'Very helpful and knowledgeable'
+  ],
+  'MATTHEW MARCEN': [
+      'Thank you for your patience in solving my margin issues during this volatile market.',
+      'Thank you to who I was talking to'
+  ],
+  'MICHAEL KRAFT': [
+      'Amazing service. A kind person',
+      'Super nice people. Very professional. Answered my question, now I can resolve the issue on my end. Thank you support.',
+      'he was patient and very helpful',
+      'Michael was patient, polite and knowledgeable.',
+      'Thank u very much',
+      'Michael deserves a raise and a promotion. Good job Michael and thank you Robinhood',
+      'The lasted individual was vary knowledgeable of my particular circumstances and provide exceptional resolve to my issue.  I\'m  very pleased.',
+      'Great representative, very helpful!',
+      'Give Micheal a raise! He was very patient with me and extremely helpful.',
+      'Michael was phenomenal and provided great customer service. He was knowledgeable and provided clarity on my situation. Thank you.',
+      'Outstanding job!  Thank you.',
+      'Michael was fantastic',
+      'He did a great job.',
+      'Very professional',
+      'Appreciate the help',
+      'Fantastic customer support',
+      'Great agent',
+      'The guy was very helpful and super patient explaining to me what I found confusing. He even repeated a few times which sincerely helped me get it into my brain in a way I would comprehend and retain it. Very good service and I look forward to anything I r',
+      'great customer service',
+      'Michael was great'
+  ],
+  'MIKE STAINBROOK': [
+      'No, Mike was a great help, just wish glitches in the system didnt happen',
+      'Wonderful team of helpers',
+      'Always great working with the wonderful team at Robinhood.',
+      'at first i didnt understand tthe situation however after the help of the most recent agent im very satisfied',
+      'Excellent work by Mike (and Jacob) who collaborated and helped me greatly today! Thanks again!',
+      'Mike was great, explained in easy to understand detail and addressed my questions directly.',
+      'Keep up the great work!',
+      'Service was great. He even followed up with a phone call and explained everything to me. Very appreciative.',
+      'Mike was a exactly what someone would expect from a support member. He not only resolved my issue quickly, he went above and beyond to explain how the issue happened and  educated me on how to prevent issues like this from happening in the future.  10 out',
+      'He did an excellent job, he was going out of his way to help me and I rapid fired questions at him. This guy deserves a raise and promotion, please heavily consider giving him one.',
+      'He resolved but app can give more info on fees and commission for prediction markets',
+      'Very nice guy and super helpful'
+  ],
+  'NATE HARGRAVES': [
+      'Very professional and educate thanks for your support feel lot better now',
+      'Very well explained thank you so much Nate',
+      'hmmm.  Nate was good, but prefer if questions answer a it quicker.',
+      'It was very good',
+      'Nate was very helpful and polite',
+      'Pretty much instantly cleared up the confusion on my end. Representative was very helpful, knowledgeable and personable.',
+      'Great response time and responses related to the questions',
+      'Awesome guy',
+      'Professional',
+      'excellent customer service as usual. knowledgeable representatives. love it. the only concern is the wait time, it\'s extremely long and chat is not clear and responses are not good',
+      'He was really good that guy should be promoted because he knows how to do his job thank you so much.',
+      'Nate was precise speedy and helpful'
+  ],
+  'NICK POLLOCK': [
+      'Nick is bery knowledgable and quick to trouble shoot the issue.',
+      'Nick was professional, knowledgeable, understanding and is definitely an asset to the Robinhood team. if only every time I called I got a Nick.',
+      'Had a good conversation. Resolved all my queries.',
+      'María also helped me. She also did well and got the right person involved. Thank you',
+      'Very friendly. Very helpful. Very efficient. Thanks again.',
+      'Nick was great',
+      'very helpful',
+      'Very helpful and to the point',
+      'Professional and helpful.',
+      'They passed me onto a third person, but then the third person was able to take care of it so I\'m happy😊'
+  ],
+  'NICK WILLIAMS': [
+      'Great customer service. Very knowledgeable and polite. Very patient and answered my in a prompt manner. I appreciate the professionalism of all the support personnel',
+      'Great customer service.',
+      'Great quick support',
+      'I was able to figure out my issue, within 15 minutes or so. Thanks',
+      'very patient and knowledgeable',
+      'Alex did a great job of explaining the “why” and “how”. I appreciate it.￼',
+      'Nick wss very patient and helpful'
+  ],
+  'NOEL MARROQUIN': [
+      'The Agent Noel was very helpfull in explaining the questions I had about etherium pay out. I am very pleases with the knowledges and services from Noel. Thank you.',
+      'Margin calls should be resolved as soon as possible and making it more dynamic and real time when it comes to resolution would be great',
+      'Great support. Very responsive and knowledgeable!',
+      'Noel was awesome and big help. Please give him a raise. Thank you!',
+      'Very understanding and helpful in explaining my issues I had.',
+      'Noel was great, solved all my issues and answered all of my questions. Came confused, left happy and informed.',
+      'Noel was wonderful and patient with me… he was able to educate me in managing futures. He did such a great job and I would like you to recognize him for assisting me so well!',
+      'Noel was great',
+      'he was amazing and explained it really well'
+  ],
+  'PETER CONNER': [
+      'Very pleased with my customer service experience today.',
+      'It was my mistake too lack of knowledge and Peter was kind enough too help me out.',
+      'Very professional and showed patience',
+      'Peter was excellent to work with and resolved my issue.',
+      'Peter was very helpful, I was confused about an issue that I think was caused by a minor UI change.',
+      'im new and working with a team and finally was able to execute my first trade successfully.  it did not come without mistakes so I appreciate all the help.',
+      'Very patient answered my questions repeatedly, and figure out what I was trying to say.',
+      'It was very helpful',
+      'More clear advice from the back office so we can all be on the same page. The options and margin team were very helpful and I\'m thankful I was able to ask all the questions needed so going forward I can grow again with the company. I plan to always be her',
+      'Very quick and great!',
+      'Peter was very patient and empathetic. He knew his work well and was able to guide me through my queries well. Thank you, Peter for being awesome!',
+      'Excellent work Peter. I appreciate your support.',
+      'Everything was fast and easy thanks to everyone and Peter',
+      'Peter was excellent and helped resolve my issue'
+  ],
+  'RENE DIAZ': [
+      'Rene was very helpful with the basics, and will forward the issue to support as a ticket. I appreciate her help.',
+      'Rene was prompt and to the point , he was knowledgeable to the fact , that it was resolved so fast we had time to chew the fat , actually best moment of my day so far ..great job and he sets the bar high for customer service,money is a difficult issue I w'
+  ],
+  'RONALD EVANS': [
+      'Amazing customer support from the Robinhood team today. Both agents were very professional and helpful. Keep up the great work!',
+      'Great job',
+      'Excellent professional',
+      'very professional, fast response, guided me tru my issues',
+      'Just keep up the good work and this company will the greatest of all time.',
+      'My issue was resolved instantly with clear guidance on what was the issue. Very happy with the support.',
+      'I would have preferred the money to be put back in my account the way it was taken out.  I do appreciate Ronalds assistance with this matter.',
+      'Everyone was very helpful and gage timely responses to help me with my issue. Thanks a ton!',
+      'Thank you',
+      'thank you ronald',
+      'The agent was very knowledgeable and helpful. He walked me thru the process and the possibility of getting my issues resolved once the assets get transferred completely.',
+      'Very Good',
+      'The level and clarity of the service hours received was excellent and all of my questions were thoroughly answered.',
+      'your  rep was Great and answered all of my questions'
+  ],
+  'SHREY GUPTA': [
+      'It was very easy to get in touch and have my doubts cleared. Very professional and helpful. Went above and beyond sending me a more detailed report as well for further review.',
+      'agent was very knowledgeable',
+      'appreciate all the help Shrey stayed with me so thankful',
+      'I am satisfied with Robinhood platform for stocks trading!',
+      'All questions and concerns answered. Thank you!'
+  ],
+  'THAY LIM': [
+      'Quick concise response',
+      'Would be nice to know when the reported bug affected my account and when it will be resolved. Currently my p/l is not correct.',
+      'I was happy with service by agents.',
+      'Transperant and clear instructions to restrict about buy equity and futures',
+      'Was a great chat I got a better understanding of what I wanted to know'
+  ],
+  'USMAN ALAM': [
+      'Glad to connect on chat with support',
+      'The young gentleman on the phone was outstanding and helpful he deserves a raise',
+      'This guy was super helpful. Promote this man !',
+      'helpful and kind',
+      'love the brokerage',
+      'it will be great to add more knowledge bases regarding secure cash puts and option sell calls. their exercises etc',
+      'You guys are great! I am loving Robinhood!!',
+      'I think usman needs a raise he did a very good job and he needs a gold plated office',
+      'Usman was great!',
+      'And he was just 100% amazing definitely setting the bar high for Robin Hood',
+      'Usman was great and able to find a solution to my problem without much input from me. Very satisfied with my service. Thank you!',
+      'very polite',
+      'Excellent customer service. Usman was very helpful!',
+      'Great service 🤩',
+      'He was great! Thanks for the help!',
+      'Very polite and helpful!'
+  ],
+  'VINCE PHUNG': [
+      'Vince was straightforward and helpful',
+      'Good kid, answered all my stupid questions and was patient with my lack of trader lingo LOL. Over all a very pleasant experience was provided. Great to have a voice to talk to!',
+      'Vince was extremely helpful in explaining how the interest free, $1,000 margin worked on my account. Not only was he helpful, but the response was quick! In past experiences with other brokerages, I would be shuffled around waiting days for a response I f',
+      'great job',
+      'I appreciate the prompt and proper steps with the resolution of my issue.'
+  ],
+  'WILLIAM MASSEY': [
+      'William was very helpful and professional. Great experience',
+      'William was patient and very easy to understand. Hands down the best support agent I have had so far. Would love to keep them as a support agent if I could! Hopefully I will get him again.',
+      'Fast, accurate response… answered the question… A+',
+      'additional programming will be needed to address. I\'d love an update as work is prioritized in the development process though. Thanks, James',
+      'William was beyond helpful, patience, professional, and knowledgeable. Really great!',
+      'William was great. Your team is very good. I feel very covered by Robinhood Thank you very much.',
+      'Excellent work!',
+      'He was great!',
+      'William was incredibly informed, patiently explained my options.',
+      'This guy William was great, but the person before him was a moron'
+  ],
+};
+
+// ── SUPERSET INTEGRATION (fill in to go live) ─────────────────
+// async function fetchFromSuperset() {
+//   const SUPERSET_URL  = 'https://YOUR-SUPERSET-HOST';
+//   const SUPERSET_TOKEN = 'YOUR_API_TOKEN';
+//
+//   // Example: fetch a chart's data via the API
+//   const res = await fetch(`${SUPERSET_URL}/api/v1/chart/data`, {
+//     method: 'POST',
+//     headers: {
+//       'Authorization': `Bearer ${SUPERSET_TOKEN}`,
+//       'Content-Type': 'application/json',
+//     },
+//     body: JSON.stringify({ query_context: { /* your query */ } }),
+//   });
+//   const json = await res.json();
+//   return json.result[0].data.map(row => ({
+//     name:      row['Agent Name'].toUpperCase(),
+//     asat:      parseFloat(row['ASAT']),
+//     qa:        parseFloat(row['QA Score']),
+//     wspph:     parseFloat(row['WSPPH']),
+//     verbatims: parseInt(row['Positive Verbatims']),
+//     aht:       parseInt(row['AHT Seconds']),
+//     precall:   parseFloat(row['Pre-Call %']),
+//   }));
+// }
+
+// ── SCORING ENGINE ────────────────────────────────────────────
+// null values are treated as "no data" and excluded per-agent.
+// Weights are renormalized per agent so missing data doesn't penalize.
+function computeScores(agents) {
+  const keys = Object.keys(WEIGHTS);
+
+  // A metric is globally active if ANY agent has a non-null value for it
+  const globalActive = keys.filter(k => agents.some(a => a[k] != null));
+
+  // min/max across all agents per active metric (nulls excluded)
+  const range = {};
+  globalActive.forEach(k => {
+    const vals = agents.map(a => a[k]).filter(v => v != null);
+    range[k] = { min: Math.min(...vals), max: Math.max(...vals) };
+  });
+
+  return agents.map(agent => {
+    const norm = {};
+    keys.forEach(k => {
+      if (!globalActive.includes(k) || agent[k] == null) { norm[k] = null; return; }
+      const { min, max } = range[k];
+      const span = max - min;
+      if (span === 0) { norm[k] = 100; return; }
+      // aht + precall: lower is better → invert
+      norm[k] = (k === 'aht' || k === 'precall')
+        ? ((max - agent[k]) / span) * 100
+        : ((agent[k] - min) / span) * 100;
+    });
+
+    // Only score on metrics this agent has data for; redistribute weight proportionally
+    const agentActive     = globalActive.filter(k => agent[k] != null);
+    const agentTotalWeight = agentActive.reduce((s, k) => s + WEIGHTS[k], 0);
+    const score = agentTotalWeight > 0
+      ? agentActive.reduce((s, k) => s + norm[k] * (WEIGHTS[k] / agentTotalWeight), 0)
+      : 0;
+
+    return { ...agent, norm, score, globalActive };
+  }).sort((a, b) => b.score - a.score);
+}
+
+// ── HELPERS ───────────────────────────────────────────────────
+// aht is stored as decimal minutes (e.g. 9.94 = 9 min 56 sec)
+function fmtAHT(min) {
+  const m = Math.floor(min);
+  const s = Math.round((min - m) * 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function barClass(pct) {
+  if (pct >= 75) return 'ex';
+  if (pct >= 50) return 'good';
+  if (pct >= 25) return 'fair';
+  return 'low';
+}
+
+const RANK_ICONS  = ['★', '◆', '▲'];
+const RANK_LABELS = ['1ST', '2ND', '3RD'];
+function rankIcon(i)  { return RANK_ICONS[i]  || (i + 1); }
+function rankLabel(i) { return RANK_LABELS[i] || `${i + 1}TH`; }
+
+// ── RENDER ────────────────────────────────────────────────────
+function render(scored) {
+  document.getElementById('period-badge').textContent = `PERIOD: ${PERIOD}`;
+
+  const lb = document.getElementById('leaderboard');
+  lb.innerHTML = scored.map((a, i) => {
+    const rankCls = i < 3 ? `r${i + 1}` : 'rn';
+
+    const na = '<span style="color:var(--dim);font-size:7px">PENDING</span>';
+
+    // phoneAht is display-only (not in WEIGHTS); compute its bar pct inline
+    const phoneAhtPct = (() => {
+      if (a.phoneAht == null) return null;
+      const vals = scored.map(x => x.phoneAht).filter(v => v != null);
+      const mn = Math.min(...vals), mx = Math.max(...vals);
+      return mx === mn ? 100 : ((mx - a.phoneAht) / (mx - mn)) * 100; // lower=better
+    })();
+
+    const metrics = [
+      { label: 'ASAT',         value: a.norm.asat      != null ? `${a.asat.toFixed(1)}%`       : na, pct: a.norm.asat },
+      { label: 'QA SCORE',     value: a.norm.qa        != null ? `${a.qa.toFixed(1)}%`          : na, pct: a.norm.qa },
+      { label: 'WSPPH',        value: a.norm.wspph     != null ? a.wspph.toFixed(2)             : na, pct: a.norm.wspph },
+      { label: 'CHAT AHT',     value: a.norm.aht       != null ? fmtAHT(a.aht)                 : na, pct: a.norm.aht },
+      { label: 'PHONE AHT',    value: a.phoneAht       != null ? fmtAHT(a.phoneAht)            : na, pct: phoneAhtPct },
+      { label: 'PRE-CALL WORK',value: a.norm.precall   != null ? `${a.precall.toFixed(2)} MIN`  : na, pct: a.norm.precall },
+      { label: 'VERBATIMS',    value: a.norm.verbatims != null ? `${a.verbatims} ✦ POSITIVE`   : na, pct: a.norm.verbatims },
+      { label: 'TOTAL SURVEYS', value: a.totalSurveys != null ? `${a.totalSurveys} SURVEYS`       : na, pct: null },
+    ];
+
+    const cells = metrics.map(m => {
+      const clickable = m.label === 'ASAT' || m.label === 'QA SCORE' || m.label === 'WSPPH' || m.label === 'CHAT AHT' || m.label === 'PHONE AHT' || m.label === 'PRE-CALL WORK';
+      const metricKey = m.label === 'ASAT' ? 'asat' : m.label === 'QA SCORE' ? 'qa' : m.label === 'WSPPH' ? 'wspph' : m.label === 'CHAT AHT' ? 'aht' : m.label === 'PHONE AHT' ? 'phoneAht' : m.label === 'PRE-CALL WORK' ? 'precall' : null;
+      return `
+      <div class="metric-cell${clickable ? ' asat-clickable' : ''}"${clickable ? ` onclick="openMetricChart('${metricKey}')" title="View ${m.label} rankings"` : ''}>
+        <div class="m-label">${m.label}</div>
+        <div class="m-value">${m.value}</div>
+        <div class="bar-bg">
+          ${m.pct != null ? `<div class="bar-fg ${barClass(m.pct)}" style="width:${m.pct.toFixed(1)}%"></div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+
+    // Build verbatim ticker
+    const vTexts = VERBATIMS[a.name] || [];
+    const tickerHtml = (() => {
+      if (!vTexts.length) return '';
+      // Truncate each quote to 100 chars for readability
+      const items = vTexts.map(t => {
+        const s = t.length > 100 ? t.slice(0, 97) + '...' : t;
+        // Escape HTML entities
+        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      });
+      const sep = '<span class="vsep">✦</span>';
+      const content = items.map(t => `<span class="vquote">${t}</span>`).join(sep);
+      const totalChars = items.reduce((n, t) => n + t.length, 0);
+      const dur = Math.max(20, Math.round(totalChars / 8)); // ~8 chars/sec
+      return `
+      <div class="vticker">
+        <div class="vticker-lbl">★ CUSTOMER VERBATIMS — ${vTexts.length} POSITIVE</div>
+        <div class="vticker-outer">
+          <div class="vticker-inner" style="--spd:${dur}s">${content}${sep}${content}</div>
+        </div>
+      </div>`;
+    })();
+
+    return `
+    <div class="agent-card ${rankCls}">
+      <div class="card-top">
+        <div class="rank-block">
+          <div class="rank-icon ${rankCls}">${rankIcon(i)}</div>
+          <div class="rank-text">${rankLabel(i)}</div>
+        </div>
+        <div class="agent-name">${a.name}</div>
+        <div class="score-block">
+          <div class="score-val">${a.score.toFixed(1)}</div>
+          <div class="score-lbl">SCORE</div>
+        </div>
+      </div>
+      <div class="metrics-grid">${cells}</div>
+      ${tickerHtml}
+    </div>`;
+  }).join('');
+}
+
+// ── METRIC CHART (ASAT / QA SCORE) ───────────────────────────
+const METRIC_CHART_CONFIG = {
+  asat: {
+    title:    'AGENT SATISFACTION',
+    sub:      '◄◄ ASAT // BEST TO LAST ►►',
+    getValue: a => a.asat,
+    format:   v => v.toFixed(1) + '%',
+    barClass: v => v >= 80 ? 'ex' : v >= 70 ? 'good' : v >= 60 ? 'fair' : 'low',
+  },
+  qa: {
+    title:    'QA SCORE',
+    sub:      '◄◄ QUALITY ASSURANCE // BEST TO LAST ►►',
+    getValue: a => a.qa,
+    format:   v => v.toFixed(1) + '%',
+    barClass: v => v >= 85 ? 'ex' : v >= 70 ? 'good' : v >= 55 ? 'fair' : 'low',
+  },
+  wspph: {
+    title:    'PRODUCTIVITY',
+    sub:      '◄◄ WSPPH // BEST TO LAST ►►',
+    getValue: a => a.wspph,
+    format:   v => v.toFixed(2),
+    barClass: v => v >= 6 ? 'ex' : v >= 4 ? 'good' : v >= 3 ? 'fair' : 'low',
+  },
+  aht: {
+    title:    'CHAT AVG HANDLE TIME',
+    sub:      '◄◄ CHAT AHT // FASTEST TO SLOWEST ►►',
+    getValue: a => a.aht,
+    format:   v => fmtAHT(v),
+    barClass: v => v <= 12 ? 'ex' : v <= 18 ? 'good' : v <= 22 ? 'fair' : 'low',
+    invert:   true,
+  },
+  phoneAht: {
+    title:    'PHONE AVG HANDLE TIME',
+    sub:      '◄◄ PHONE AHT // FASTEST TO SLOWEST ►►',
+    getValue: a => a.phoneAht,
+    format:   v => fmtAHT(v),
+    barClass: v => v <= 10 ? 'ex' : v <= 14 ? 'good' : v <= 17 ? 'fair' : 'low',
+    invert:   true,
+  },
+  precall: {
+    title:    'PRE-CALL WORK',
+    sub:      '◄◄ PRE-CALL // FASTEST TO SLOWEST ►►',
+    getValue: a => a.precall,
+    format:   v => v.toFixed(2) + ' MIN',
+    barClass: v => v <= 0.75 ? 'ex' : v <= 1.25 ? 'good' : v <= 2.00 ? 'fair' : 'low',
+    invert:   true,
+  },
+};
+
+function openMetricChart(metricKey) {
+  const cfg = METRIC_CHART_CONFIG[metricKey];
+  if (!cfg) return;
+
+  const sorted = [...scored]
+    .filter(a => cfg.getValue(a) != null)
+    .sort((a, b) => cfg.invert
+      ? cfg.getValue(a) - cfg.getValue(b)   // ascending: lowest = best
+      : cfg.getValue(b) - cfg.getValue(a)); // descending: highest = best
+
+  const avg = sorted.reduce((s, a) => s + cfg.getValue(a), 0) / sorted.length;
+  const allVals = sorted.map(a => cfg.getValue(a));
+  const mn  = Math.min(...allVals);
+  const mx  = Math.max(...allVals);
+
+  const rankSymbols = ['★', '◆', '▲'];
+
+  const rows = sorted.map((a, i) => {
+    const rowCls  = i < 3 ? `cr${i + 1}` : '';
+    const rankTxt = rankSymbols[i] || `${i + 1}`;
+    const val     = cfg.getValue(a);
+    const barW    = mx === mn ? 100 : cfg.invert
+      ? ((mx - val) / (mx - mn)) * 100   // lower val = longer bar
+      : ((val - mn) / (mx - mn)) * 100;  // higher val = longer bar
+    const bc      = cfg.barClass(val);
+    return `
+    <div class="chart-row ${rowCls}">
+      <div class="cr-rank">${rankTxt}</div>
+      <div class="cr-name">${a.name}</div>
+      <div class="cr-bar-wrap">
+        <div class="cr-bar ${bc}" style="width:${barW.toFixed(1)}%"></div>
+      </div>
+      <div class="cr-pct">${cfg.format(val)}</div>
+    </div>`;
+  }).join('');
+
+  // Update modal header text
+  document.querySelector('#asat-modal .modal-title').textContent = cfg.title;
+  document.querySelector('#asat-modal .modal-sub').textContent   = cfg.sub;
+
+  document.getElementById('asat-chart').innerHTML =
+    rows +
+    `<div class="chart-avg-line">◆ TEAM AVG: ${cfg.format(avg)} &nbsp;|&nbsp; ${sorted.length} AGENTS</div>`;
+
+  // Populate stars in modal (only once)
+  const el2 = document.getElementById('stars2');
+  if (!el2.hasChildNodes()) {
+    for (let i = 0; i < 70; i++) {
+      const s = document.createElement('div');
+      s.className = 'star';
+      s.style.left  = Math.random() * 100 + '%';
+      s.style.top   = Math.random() * 100 + '%';
+      s.style.setProperty('--d',     (2 + Math.random() * 5) + 's');
+      s.style.setProperty('--delay', (Math.random() * 5) + 's');
+      el2.appendChild(s);
+    }
+  }
+
+  const modal = document.getElementById('asat-modal');
+  modal.classList.add('open');
+  modal.scrollTop = 0;
+  document.body.style.overflow = 'hidden';
+}
+
+function closeAsatChart() {
+  document.getElementById('asat-modal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// Close modal on Escape key
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeAsatChart();
+});
+
+// ── STAR FIELD ────────────────────────────────────────────────
+function buildStars() {
+  const el = document.getElementById('stars');
+  for (let i = 0; i < 90; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    s.style.left  = Math.random() * 100 + '%';
+    s.style.top   = Math.random() * 100 + '%';
+    s.style.setProperty('--d',     (2 + Math.random() * 5) + 's');
+    s.style.setProperty('--delay', (Math.random() * 5) + 's');
+    el.appendChild(s);
+  }
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+buildStars();
+// Inject verbatim counts from VERBATIMS lookup before scoring
+const agentsWithVerbatims = AGENTS.map(a => ({
+  ...a,
+  verbatims:    (VERBATIMS[a.name] || []).length,
+  totalSurveys: SURVEY_COUNTS[a.name] ?? null,
+}));
+const scored = computeScores(agentsWithVerbatims);
+render(scored);
+</script>
+</body>
+</html>
